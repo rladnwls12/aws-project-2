@@ -75,10 +75,12 @@ sudo nano /etc/fstab
 ```
 # EFS — tls: 암호화, iam: IAM 인증
 # 예) fs-0c004845d6e9e7689:/ /efs efs _netdev,noresvport,tls,iam,nofail 0 0
+
 <실제_EFS_ID>:/ /efs efs _netdev,noresvport,tls,iam,nofail 0 0
 
 # S3 — allow-other: ec2-user 접근 허용, region: 제한 환경에서 자동탐색 실패 방지
 # 예) s3://my-bucket /data mount-s3 _netdev,nosuid,nodev,nofail,rw,allow-other,region=ap-northeast-2 0 0
+
 s3://<실제_버킷명> /data mount-s3 _netdev,nosuid,nodev,nofail,rw,allow-other,region=<실제_리전> 0 0
 ```
 
