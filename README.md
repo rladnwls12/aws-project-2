@@ -47,7 +47,7 @@ VPC/SG 확인 → S3 버킷 → EC2 확인 → EFS + Mount Target → IAM Role
 - [ ] Lambda용 Subnet ID / SG ID 확보
 - [ ] 모든 리소스 Tag 누락 없음
 
-### 환경 변수 (터미널 전용 — 콘솔 입력 시 직접 타이핑)
+### 환경 변수 **터미널**(Ec2내) 전용 — 콘솔에서 입력 시 직접 타이핑)
 
 ```bash
 export MY_BUCKET="<S3_버킷명>"
