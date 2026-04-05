@@ -158,9 +158,38 @@ TBLPROPERTIES (
 
 ### Assume Role
 
+
+
+
 ```bash
 # 1. Role 수행
+
+## 🛠️ IAM Role 생성 절차 
+
+1. **IAM 콘솔 접속**
+   * AWS Management Console에서 **IAM** 서비스로 이동합니다.
+
+2. **역할 생성 시작**
+   * 왼쪽 메뉴에서 **Roles (역할)**를 선택한 후, 우측 상단의 **Create role (역할 생성)** 버튼을 클릭합니다.
+
+3. **신뢰할 수 있는 엔티티 선택 (Select trusted entity)**
+   * **Trusted entity type**: `AWS account`를 선택합니다.
+   * **An AWS account**: `This account` (현재 계정)를 선택합니다.
+   * **⚠️ 중요**: 하단의 **MFA (Multi-Factor Authentication)** 체크박스가 **해제**되어 있는지 확인합니다.
+
+4. **권한 추가 (Add permissions)**
+   * (별도의 정책 연결 없이) 하단의 **Next**를 눌러 넘어갑니다. (나중에 인라인 정책으로 추가)
+
+5. **이름 설정 및 생성 (Name, review, and create)**
+   * **Role name**: `MyS3AccessRole`을 입력합니다.
+   * 하단의 **Create role** 버튼을 눌러 생성을 완료합니다.
+
+
+
 aws sts assume-role --role-arn $MY_ROLE_ARN --role-session-name mysession
+
+
+
 
 # 2. 출력된 값을 아래에 붙여넣기 (Linux/Mac)
 export AWS_ACCESS_KEY_ID="<결과_AccessKeyId>"
