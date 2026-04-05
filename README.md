@@ -1,300 +1,450 @@
-# 🏆 AWS 실전 인프라 구축: 마스터 시트
+# InternationalPay 서비스 AWS 인프라 구축 문서
+
+> **문서 목적:** 업로드된 과제 자료를 통합하여, **보안**, **고가용성**, **확장성**, **자동 배포**, **운영 모니터링** 중심의 실전용 기술 문서로 정리한다.
 
 ---
 
-## ⚡ 황금률 3 — 가장 먼저 읽으세요
 
-> **1. 치환의 법칙** `< >` 괄호 안의 내용은 실제 값으로 교체한다. **괄호도 삭제.**  
-> 예) `<S3_버킷명>` → `skills-web-bucket`
+## 📚 목차
 
-> **2. fstab의 법칙** `/etc/fstab`에는 `$` 환경변수를 절대 쓰지 않는다.  
-> fstab은 부팅 시 로드 → export 변수 인식 불가 → 마운트 실패 + 부팅 장애
+## 1. 📌 과제 개요
+### 1.1 과제 목표
+### 1.2 기술 스택
+### 1.3 기본 조건 및 제한사항
 
-> **3. Athena의 법칙** 쿼리보다 Settings가 먼저다.  
-> Query result location 미설정 시 DDL 포함 **모든 쿼리 실행 불가**
+## 2. 🏗 전체 아키텍처
+### 2.1 아키텍처 개요
+### 2.2 구성도 (Architecture Diagram)
+### 2.3 설계 원칙
+
+## 3. 🌐 네트워크 및 보안
+### 3.1 VPC 구성
+### 3.2 서브넷 설계
+### 3.3 VPC Peering
+### 3.4 라우팅 테이블
+### 3.5 보안 그룹
+### 3.6 KMS CMK
+
+## 4. 💻 컴퓨팅 구성 (EC2)
+### 4.1 Bastion EC2
+### 4.2 Application EC2
+### 4.3 환경 설정
+### 4.4 IAM Role
+
+## 5. 💾 데이터베이스
+### 5.1 Aurora 구성
+### 5.2 서브넷 그룹
+### 5.3 보안 설정
+### 5.4 접속 확인
+
+## 6. 🧪 개발 및 테스트
+### 6.1 애플리케이션
+### 6.2 실행 및 테스트
+### 6.3 디버깅
+
+## 7. ⚙️ 배포 및 확장
+### 7.1 AMI
+### 7.2 Launch Template
+### 7.3 ALB
+### 7.4 ASG
+
+## 8. 📊 모니터링
+### 8.1 CloudWatch Agent
+### 8.2 로그 설정
+### 8.3 로그 확인
+
+## 9. ✅ 체크리스트
+
+## 10. ⚠️ 주의사항
+
+## 11. 🧠 요약 및 Takeaway
 
 ---
 
-## 📋 요구사항
+## 1. 과제 개요
+- **WorldPay** 유저 관리 시스템을 위한 AWS 인프라를 설계·구축한다.
+- 핵심 목표는 다음과 같다.
+  1. **중요 정보 보호**
+  2. **고가용성 확보**
+  3. **확장성 확보**
+  4. **운영 자동화**
 
-| # | 요구사항 | 핵심 |
-|---|---------|------|
-| 1 | Shared network storage | EFS + S3FS 영구 마운트 |
-| 2 | Query from S3 | Athena Partition Projection |
-| 3 | Fine-grained IAM policy | ABAC Condition + Assume Role |
-| 4 | MySQL with Lambda (**생성만**) | RDS MySQL + Lambda (VPC 내) |
+### 1.2 사용 기술 스택
+| 구분 | 기술 |
+|---|---|
+| 네트워크 | VPC, VPC Peering |
+| 컴퓨팅 | EC2, ALB, ASG |
+| 데이터베이스 | RDS Aurora MySQL |
+| 보안 | Secrets Manager, KMS |
+| 모니터링 | CloudWatch |
+| 개발 언어 | Python |
+| OS | Amazon Linux 2023 |
 
-**유의사항**: SG outbound `80/443` Any open 유지 / Tag 누락 시 채점 불가 / 채점은 Cloud Shell 기준
+### 1.3 기본 전제
+- **리전:** `ap-northeast-2 (서울)`
+- **OS 이미지:** **Amazon Linux 2023**
+- **변수값:** 문제에서 지정된 값은 **반드시 반영**
+- **금지사항:** 지급된 바이너리는 **수정 금지**
+- **Bastion EC2**는 채점 과정에서 사용되므로 연결과 권한 문제를 방지해야 한다.
 
 ---
 
-## 0. 시작 전
+## 2. 전체 아키텍처
 
-### 생성 순서
+### 2.1 아키텍처 요약
+- 인프라는 **2개의 VPC**로 분리한다.
+  - **VPC-1:** 애플리케이션용
+  - **VPC-2:** 데이터베이스용
+- 두 VPC는 **VPC Peering**으로 연결한다.
+- 외부 사용자는 **ALB**를 통해 애플리케이션에 접근한다.
+- 애플리케이션 서버는 **Private Subnet**에 두고, DB는 별도 VPC의 Private 환경에 배치한다.
 
+### 2.2 구조도
+```mermaid
+graph LR
+  User((Internet User))
+  ALB[ALB\nPublic Subnet]
+  App[EC2 / ASG\nPrivate Subnet]
+  NAT[NAT Gateway]
+  DB[(Aurora MySQL\nVPC-2 DB Subnet)]
+  Bastion[Bastion EC2\nPublic Subnet]
+
+  User --> ALB
+  ALB --> App
+  App --> DB
+  App --> NAT
+  Bastion --> App
 ```
-VPC/SG 확인 → S3 버킷 → EC2 확인 → EFS + Mount Target → IAM Role
-→ Athena Settings → RDS MySQL → Lambda 실행역할 → Lambda 함수
-→ 환경변수 export → 마운트/Athena/IAM 테스트
-```
 
-### 사전 점검 (1번 진입 전 전부 체크)
+### 2.3 구성 원칙
+- **외부 노출 최소화**
+- **DB는 인터넷 비노출**
+- **애플리케이션은 Private Subnet 배치**
+- **멀티 AZ 기반 구성**
+- **암호화 및 로그 수집 기본 적용**
 
-- [ ] S3 버킷 존재 / `/data/` `/results/` 경로 파악
-- [ ] EC2 준비 + EFS와 동일 VPC
-- [ ] EFS + **Mount Target** 생성 완료 (생성만으로 마운트 안 됨)
-- [ ] EFS SG inbound `TCP 2049(NFS)` 열림
-- [ ] Assume Role 대상 IAM Role 존재
-- [ ] **Athena → Settings → Query result location** 설정 완료
-- [ ] RDS MySQL이 Lambda와 동일 VPC
-- [ ] Lambda 실행역할에 `AWSLambdaVPCAccessExecutionRole` 연결
-- [ ] Lambda용 Subnet ID / SG ID 확보
-- [ ] 모든 리소스 Tag 누락 없음
+---
 
-### 환경 변수 (터미널 전용 — 콘솔 입력 시 직접 타이핑)
+## 3. 네트워크 및 보안
 
+### 3.1 VPC 구성
+| VPC | 역할 | 서브넷 |
+|---|---|---|
+| VPC-1 | 애플리케이션 VPC | Public Subnet, Private Subnet |
+| VPC-2 | 데이터베이스 VPC | DB Subnet |
+
+### 3.2 서브넷 배치
+- **Public Subnet**
+  - ALB
+  - Bastion EC2
+- **Private Subnet**
+  - Application EC2
+  - NAT Gateway를 통한 외부 통신
+- **DB Subnet**
+  - Aurora MySQL
+  - 외부 인터넷 통신 차단
+
+### 3.3 VPC Peering
+- **VPC-1 ↔ VPC-2** 사이에 **Peering 연결**을 설정한다.
+- 라우팅 테이블에 **Peering 경로**를 반드시 추가한다.
+- 통신은 **Private IP 기반**으로만 처리한다.
+
+> **주의:** Peering만 생성하고 라우팅을 추가하지 않으면 DB 통신이 되지 않는다.
+
+### 3.4 보안 그룹 설계
+| 대상 | 인바운드 포트 | 허용 소스 | 용도 |
+|---|---:|---|---|
+| ALB-SG | 80, 443 | `0.0.0.0/0` | 외부 트래픽 수신 |
+| Bastion-SG | 22 | `0.0.0.0/0` | SSH 접속 |
+| App-SG | 22, 8000 | `0.0.0.0/0` 또는 요구 조건에 맞는 범위 | 앱 서버 접근 |
+| DB-SG | 3306 | VPC-1 CIDR | Aurora 접근 |
+
+> **Tip:** 과제 조건에 따라 **80/443 outbound는 any open**으로 둘 수 있다.
+
+### 3.5 KMS CMK
+- 암호화 대상별로 **고객 관리형 KMS 키(CMK)**를 생성한다.
+- 사용 예시:
+  - Aurora 저장 데이터 암호화
+  - 백업 및 스냅샷 암호화
+  - Secrets Manager 연동
+- 핵심 권한은 최소 권한 원칙으로 부여한다.
+
+---
+
+## 4. 컴퓨팅 및 애플리케이션
+
+### 4.1 Bastion EC2
+- **Public Subnet**에 배치
+- **EIP**를 고정 할당
+- 관리용 SSH 진입점으로 사용
+- Bastion이 막히면 채점에 직접적인 문제가 생길 수 있으므로 주의
+
+### 4.2 Test EC2 / Application EC2
+- **Private Subnet**에 배치
+- 테스트와 배포 검증, 실제 애플리케이션 실행에 사용
+- 필수 작업:
+  1. Python 3.12 / pip 설치
+  2. FastAPI, boto3, pymysql, sqlalchemy, uvicorn 설치
+  3. IAM Role 연결
+  4. systemd 서비스 등록
+  5. CloudWatch Logs 연동
+  6. AMI 생성
+
+### 4.3 패키지 설치 예시
 ```bash
-export MY_BUCKET="<S3_버킷명>"
-export MY_TABLE="<Athena_테이블명>"
-export MY_EFS_ID="<EFS_ID>"         # fs-xxxxxxxx
-export MY_ROLE_ARN="arn:aws:iam::<계정ID>:role/<역할명>"
-export MY_REGION="<리전>"            # 예: ap-northeast-2
+sudo dnf install -y python3.12 python3.12-pip mariadb1011
+python3.12 -m pip install fastapi pydantic[email] pymysql boto3 sqlalchemy passlib uvicorn
+```
+
+### 4.4 IAM Role 권한
+애플리케이션 EC2에는 다음 권한이 필요하다.
+| 서비스 | 권한 예시 | 용도 |
+|---|---|---|
+| Secrets Manager | `GetSecretValue` | DB 비밀 정보 조회 |
+| KMS | `Decrypt` | 암호화 키 사용 |
+| CloudWatch Logs | `CreateLogStream`, `PutLogEvents` | 로그 전송 |
+
+### 4.5 systemd 서비스
+`worldpay.service` 예시:
+
+```ini
+[Unit]
+Description=worldpay service
+After=network.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user
+ExecStart=/home/ec2-user/.local/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+StandardOutput=append:/home/ec2-user/worldpay.log
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 4.6 서비스 관리
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now worldpay
+sudo systemctl status worldpay.service
+```
+
+> **경고:** `ExecStart` 경로, 사용자 계정, WorkingDirectory가 틀리면 서비스가 정상 시작되지 않는다.
+
+---
+
+## 5. 데이터베이스
+
+### 5.1 Aurora MySQL 구성
+- **Engine:** Aurora MySQL
+- **배치:** VPC-2 DB Subnet
+- **가용성:** Multi-AZ
+- **보안:** 인터넷 접근 차단
+- **암호화:** KMS CMK 적용
+- **백업:** 자동 백업 및 PITR 활성화
+
+### 5.2 서브넷 그룹
+- VPC-2의 **AZ-a / AZ-b 서브넷**을 서브넷 그룹에 포함한다.
+
+### 5.3 접근 규칙
+- DB-SG는 **3306/TCP**만 허용
+- 허용 소스는 **VPC-1 CIDR**로 제한
+- 외부 인터넷 접근은 차단
+
+### 5.4 접속 확인
+```bash
+nslookup worldpay-db.cluster-xxxxxxxx.ap-northeast-2.rds.amazonaws.com
+mysql -h worldpay-db.cluster-xxxxxxxx.ap-northeast-2.rds.amazonaws.com -u admin -p
 ```
 
 ---
 
-## 1. Shared Network Storage
+## 6. 개발 및 테스트
 
-> 🚨 `mount -a` 실행 후 무반응 = 99% SG의 `TCP 2049` 미개방
+### 6.1 main.py 작성
+- FastAPI 기반으로 작성
+- 최소 구현 항목:
+  - `/health`
+  - `/health/db`
+  - 사용자 관련 API
 
-### 설치
-
+### 6.2 의존성 관리
 ```bash
-sudo dnf install -y amazon-efs-utils   # Amazon Linux
-# sudo apt install -y amazon-efs-utils # Ubuntu
-sudo mkdir -p /efs /data
+pipreqs ./ --force
+pip3.12 install -r requirements.txt
 ```
 
-### /etc/fstab 설정
-
+### 6.3 로컬 실행
 ```bash
-# nano 추천. vi라면: i → 입력 → Esc → :wq → Enter
-sudo nano /etc/fstab
+python3.12 -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-파일 하단에 추가 (꺾쇠 포함 실제 값으로 교체):
-
-```
-# EFS — tls: 암호화, iam: IAM 인증
-# 예) fs-0c004845d6e9e7689:/ /efs efs _netdev,noresvport,tls,iam,nofail 0 0
-<실제_EFS_ID>:/ /efs efs _netdev,noresvport,tls,iam,nofail 0 0
-
-# S3 — allow-other: ec2-user 접근 허용, region: 제한 환경에서 자동탐색 실패 방지
-# 예) s3://my-bucket /data mount-s3 _netdev,nosuid,nodev,nofail,rw,allow-other,region=ap-northeast-2 0 0
-s3://<실제_버킷명> /data mount-s3 _netdev,nosuid,nodev,nofail,rw,allow-other,region=<실제_리전> 0 0
-```
-
+### 6.4 테스트 예시
 ```bash
-sudo mount -a
-sudo chown ec2-user:ec2-user /efs /data
+curl localhost:8000/health
+curl localhost:8000/users
+curl -X POST localhost:8000/users \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","name":"hong","password":"pass1004"}'
 ```
 
-| 옵션 | 설명 |
-|------|------|
-| `_netdev` | 네트워크 활성화 후 마운트 |
-| `nofail` | 마운트 실패해도 부팅 계속 |
-| `tls` | 전송 암호화 |
-| `iam` | IAM 인증 |
-| `allow-other` | root 외 사용자 접근 허용 |
-| `region=` | S3 리전 명시 (누락 시 마운트 실패 가능) |
+### 6.5 디버깅 포인트
+- `main.py` 실행 에러
+- DB 접속 실패
+- security group 누락
+- systemd 서비스 경로 오류
+- CloudWatch 로그 미전송
 
 ---
 
-## 2. Query from S3 (Athena)
+## 7. ALB / Target Group / ASG
 
-> 🚨 **먼저**: Athena → Settings → Manage → Query result location → `s3://<버킷명>/results/` (끝 `/` 필수)
+### 7.1 ALB
+- **Internet-facing**
+- **Public Subnet**의 두 AZ에 배치
+- HTTP 80 → HTTPS 443 리디렉션 권장
+- HTTPS 사용 시 ACM 인증서 적용
 
-> 🚨 `0 records` = `storage.location.template`이 실제 S3 경로 구조와 불일치
+### 7.2 Target Group
+| 항목 | 값 |
+|---|---|
+| Target Type | Instances |
+| Protocol | HTTP |
+| Port | 8000 |
+| Health Check Path | `/health` |
 
-### S3 경로 확인 후 선택
+### 7.3 ASG
+- **Private Subnet**에 배치
+- **Desired Capacity = 2**
+- **Minimum = 2**
+- **Maximum = 4~6**
+- Multi-AZ로 구성
 
-| Case | S3 폴더 구조 | `storage.location.template` |
-|------|-------------|----------------------------|
-| **A (Hive)** | `.../year=2025/month=04/day=05/` | `s3://<버킷>/data/year=${year}/month=${month}/day=${day}/` |
-| **B (Date)** | `.../2025/04/05/` | `s3://<버킷>/data/${year}/${month}/${day}/` |
+### 7.4 Launch Template
+| 항목 | 내용 |
+|---|---|
+| AMI | 커스텀 AMI |
+| Instance Type | 과제 지정 값 |
+| Security Group | App-SG |
+| IAM Role | Secrets Manager / KMS / CloudWatch 권한 포함 |
 
-Case A는 `MSCK REPAIR TABLE <테이블명>;` 가능. Case B는 반드시 아래 Projection 사용.
-
-### Athena DDL
-
-> ⚠️ 실제 데이터 파일에 없는 컬럼은 정의하지 마세요 (빈값/에러 발생)  
-> ⚠️ `PARTITIONED BY` 타입은 projection 타입과 반드시 일치 → 전부 `INT`
-
-```sql
-CREATE EXTERNAL TABLE <MY_TABLE> (
-    id         INT,
-    user_id    INT,
-    name       STRING,
-    amount     DOUBLE,
-    status     STRING,
-    country    STRING,
-    event_time TIMESTAMP
-    -- date DATE  ← 파일에 실제 컬럼 있을 때만 추가
-)
-PARTITIONED BY (year INT, month INT, day INT)
-ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-LOCATION 's3://<MY_BUCKET>/data/'
-TBLPROPERTIES (
-    'projection.enabled'        = 'true',
-    'projection.year.type'      = 'integer',
-    'projection.year.range'     = '2025,2026',
-    'projection.month.type'     = 'integer',
-    'projection.month.range'    = '1,12',
-    'projection.month.digits'   = '2',
-    'projection.day.type'       = 'integer',
-    'projection.day.range'      = '1,31',
-    'projection.day.digits'     = '2',
-    -- Case A: 'storage.location.template' = 's3://<MY_BUCKET>/data/year=${year}/month=${month}/day=${day}/'
-    -- Case B: 'storage.location.template' = 's3://<MY_BUCKET>/data/${year}/${month}/${day}/'
-    'storage.location.template' = 's3://<MY_BUCKET>/data/${year}/${month}/${day}/'
-);
+### 7.5 배포 흐름
+```mermaid
+flowchart LR
+  A[Update: 테스트 EC2에서 검증] --> B[Bake: 신규 AMI 생성]
+  B --> C[Template: Launch Template 갱신]
+  C --> D[Refresh: ASG Instance Refresh]
 ```
+
+> **핵심:** AMI 기반 롤링 배포로 **무중단 교체**를 구현한다.
 
 ---
 
-## 3. Fine-grained IAM Policy
+## 8. 로깅 및 모니터링
 
-> 🚨 `${aws:username}`은 IAM 예약어 — 절대 수정 금지. AWS가 자동으로 현재 접속자를 대입함
+### 8.1 CloudWatch Agent
+- EC2에 설치하여 시스템 로그와 애플리케이션 로그를 수집한다.
+- `worldpay.log`를 CloudWatch Logs로 전송한다.
+- `/health` 관련 로그는 제외 필터를 둘 수 있다.
 
-### Assume Role
-
+### 8.2 설치 및 적용
 ```bash
-# 1. Role 수행
-aws sts assume-role --role-arn $MY_ROLE_ARN --role-session-name mysession
-
-# 2. 출력된 값을 아래에 붙여넣기 (Linux/Mac)
-export AWS_ACCESS_KEY_ID="<결과_AccessKeyId>"
-export AWS_SECRET_ACCESS_KEY="<결과_SecretAccessKey>"
-export AWS_SESSION_TOKEN="<결과_SessionToken>"
-
-# Windows PowerShell
-# $env:AWS_ACCESS_KEY_ID="<결과_AccessKeyId>"
-# $env:AWS_SECRET_ACCESS_KEY="<결과_SecretAccessKey>"
-# $env:AWS_SESSION_TOKEN="<결과_SessionToken>"
-
-# 3. 확인 (출력에 AssumedRole 이름이 나와야 성공)
-aws sts get-caller-identity
+sudo dnf install amazon-cloudwatch-agent -y
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 ```
 
-> ⏱️ 세션은 기본 **1시간 후 만료** → 갑자기 권한 에러 나면 위 과정 재실행
-
-### S3 ABAC 정책
-
-> ⚠️ 콘솔에서 직접 입력 시 `[실제_버킷_이름]` → 실제 버킷명으로 교체. `${aws:username}`은 그대로.
-
+### 8.3 설정 파일 예시
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": "s3:*",
-            "Resource": "arn:aws:s3:::[실제_버킷_이름]"
-        },
-        {
-            "Effect": "Allow",
-            "Action": "s3:*",
-            "Resource": "arn:aws:s3:::[실제_버킷_이름]/*",
-            "Condition": {
-                "StringEquals": {
-                    "s3:ExistingObjectTag/Owner": "${aws:username}"
-                }
-            }
-        }
-    ]
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/home/ec2-user/worldpay.log",
+            "log_group_name": "worldpay",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S",
+            "filters": [
+              {
+                "type": "exclude",
+                "expression": ".*\\/health.*"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
 }
 ```
 
----
-
-## 4. MySQL with Lambda (생성만)
-
-> 🚨 Lambda를 VPC에 넣으면 `AWSLambdaVPCAccessExecutionRole` 없이는 ENI 생성 실패 → 무한 로딩  
-> 🚨 VPC 내 Lambda는 인터넷 차단 → S3 접근 필요 시 S3 Gateway Endpoint 별도 생성
-
-### RDS MySQL
-
+### 8.4 로그 확인
 ```bash
-aws rds create-db-instance \
-    --db-instance-identifier <DB_인스턴스명> \
-    --db-instance-class db.t3.micro \
-    --engine mysql \
-    --master-username <유저명> \
-    --master-user-password <비밀번호> \
-    --allocated-storage 20 \
-    --no-publicly-accessible \
-    --region $MY_REGION
-```
-
-콘솔 체크: Engine `MySQL` / VPC = Lambda와 동일 / Public access `No` / SG inbound `TCP 3306` from Lambda SG
-
-### Lambda 실행역할 — VPC 정책 연결
-
-```bash
-aws iam attach-role-policy \
-    --role-name <Lambda_실행역할명> \
-    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-```
-
-### Lambda 함수 생성
-
-```bash
-aws lambda create-function \
-    --function-name <Lambda_함수명> \
-    --runtime python3.12 \
-    --role arn:aws:iam::<계정ID>:role/<Lambda_실행역할명> \
-    --handler lambda_function.lambda_handler \
-    --zip-file fileb://function.zip \
-    --vpc-config SubnetIds=<서브넷ID>,SecurityGroupIds=<SG_ID> \
-    --region $MY_REGION
+tail -f /home/ec2-user/worldpay.log
+sudo journalctl -u worldpay -f
 ```
 
 ---
 
-## ✅ 종료 전 최종 검증 (명령어로 직접 확인)
+## 9. 배포 체크리스트
 
-```bash
-# 1. 마운트 확인
-df -h | grep -E "/efs|/data"
-# → /efs 와 /data 가 모두 보여야 합니다
+### 9.1 필수 완료 항목
+1. VPC 생성
+2. VPC Peering 설정
+3. KMS CMK 생성
+4. Aurora 생성 및 암호화 적용
+5. Bastion EC2 생성 및 EIP 할당
+6. Test EC2 구성
+7. ALB / Target Group 생성
+8. Launch Template 생성
+9. ASG 생성
+10. CloudWatch Agent 적용
 
-# 2. EFS 쓰기 테스트
-echo "efs-test" | sudo tee /efs/test.txt && cat /efs/test.txt
+### 9.2 점검 사항
+- 리전이 **ap-northeast-2**인지 확인
+- Name tag가 과제 요구와 일치하는지 확인
+- Bastion 접근이 가능한지 확인
+- DB 보안 그룹이 올바르게 연결되었는지 확인
+- `/health` 응답이 정상인지 확인
 
-# 3. S3 마운트 파일 확인
-ls /data
+---
 
-# 4. Assume Role 확인
-aws sts get-caller-identity
-# → "Arn" 에 "assumed-role" 이 포함되어야 합니다
+## 10. 주의사항
 
-# 5. Lambda VPC 설정 확인
-aws lambda get-function-configuration \
-    --function-name <Lambda_함수명> \
-    --query 'VpcConfig' --region $MY_REGION
-# → SubnetIds, SecurityGroupIds 가 비어 있지 않아야 합니다
+> **주의:** 문제가 지정한 **변수 부분은 적절히 변경**해야 한다.
 
-# 6. RDS 상태 확인
-aws rds describe-db-instances \
-    --db-instance-identifier <DB_인스턴스명> \
-    --query 'DBInstances[0].DBInstanceStatus' --region $MY_REGION
-# → "available" 이어야 합니다
-```
+> **주의:** 과제에서 지급한 **바이너리는 절대 수정하지 않는다**.
 
-| 항목 | 검증 명령어 | 기대 결과 |
-|------|------------|---------|
-| EFS/S3 마운트 | `df -h` | `/efs`, `/data` 노출 |
-| Athena 조회 | `SELECT` 실행 | 실제 데이터 출력 |
-| IAM Assume | `get-caller-identity` | `assumed-role` 포함 |
-| Lambda VPC | `get-function-configuration` | Subnet/SG 값 존재 |
-| RDS 상태 | `describe-db-instances` | `available` |
+> **주의:** `Bastion EC2`는 채점용 진입점이므로 연결 문제를 반드시 방지해야 한다.
+
+> **주의:** `EC2 OS Image`는 **Amazon Linux 2023**을 사용한다.
+
+> **주의:** 리소스는 명시가 없는 경우 **ap-northeast-2**에 생성한다.
+
+---
+
+## 11. 문서 요약 및 핵심 Takeaway
+
+### 11.1 문서 요약
+- **VPC 2개 분리 구조**로 애플리케이션과 DB를 격리한다.
+- **VPC Peering**으로 내부 통신만 허용한다.
+- **ALB + ASG**로 고가용성과 확장성을 확보한다.
+- **Aurora MySQL + KMS**로 데이터 안정성과 보안을 강화한다.
+- **systemd + CloudWatch**로 운영 자동화와 모니터링을 완성한다.
+
+### 11.2 핵심 Takeaway
+1. **보안**은 네트워크 분리와 최소 권한으로 완성한다.
+2. **고가용성**은 Multi-AZ, ALB, ASG로 구현한다.
+3. **운영 안정성**은 AMI 기반 롤링 배포와 CloudWatch로 확보한다.
+4. **채점 안정성**은 Bastion, 리전, 태그, 바이너리 규칙 준수에 달려 있다.
+
+---
+
+## 12. 참고 자료
+- 업로드된 과제 요약 자료
+- README.md
+- 클라우드컴퓨팅 1과제 PDF
