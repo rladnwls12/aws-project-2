@@ -70,7 +70,7 @@ export MY_REGION="<리전>"            # 예: ap-northeast-2
 ### 설치
 
 ```bash
-sudo yum install -y amazon-efs-utils   # Amazon Linux
+sudo dnf install -y amazon-efs-utils   # Amazon Linux
 # sudo apt install -y amazon-efs-utils # Ubuntu
 sudo mkdir -p /efs /data
 ```
