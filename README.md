@@ -123,7 +123,7 @@ sudo chown ec2-user:ec2-user /efs /data
 | **A (Hive)** | `.../year=2025/month=04/day=05/` | `s3://<버킷>/data/year=${year}/month=${month}/day=${day}/` |
 | **B (Date)** | `.../2025/04/05/` | `s3://<버킷>/data/${year}/${month}/${day}/` |
 
-Case A는 `MSCK REPAIR TABLE <테이블명>;` 가능. Case B는 반드시 아래 Projection 사용.
+Case A는 `MSCK REPAIR TLE <테이블명>;` 가능. Case B는 반드시 아래 Projection 사용.
 
 ### Athena DDL
 
@@ -131,7 +131,7 @@ Case A는 `MSCK REPAIR TABLE <테이블명>;` 가능. Case B는 반드시 아래
 > ⚠️ `PARTITIONED BY` 타입은 projection 타입과 반드시 일치 → 전부 `INT`
 
 ```sql
-CREATE EXTERNAL TABLE <MY_TABLE> (
+CREATE EXTERNAL TLE <MY_TLE> (
     id         INT,
     user_id    INT,
     name       STRING,
@@ -145,7 +145,7 @@ PARTITIONED BY (year INT, month INT, day INT)
 ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
 LOCATION 's3://<MY_BUCKET>/data/'
 TBLPROPERTIES (
-    'projection.enabled'        = 'true',
+    'projection.enled'        = 'true',
     'projection.year.type'      = 'integer',
     'projection.year.range'     = '2025,2026',
     'projection.month.type'     = 'integer',
@@ -188,9 +188,9 @@ aws sts get-caller-identity
 
 > ⏱️ 세션은 기본 **1시간 후 만료** → 갑자기 권한 에러 나면 위 과정 재실행
 
-### S3 ABAC 정책
+### S3 AC 정책
 
-> ⚠️ 콘솔에서 직접 입력 시 `[실제_버킷_이름]` → 실제 버킷명으로 교체. `${aws:username}`은 그대로.
+> ⚠️ 콘솔에서 **직접 입력(제발 타이핑)** 시 `[실제_버킷_이름]` → 실제 버킷명으로 교체. `${aws:username}`은 그대로.
 
 ```json
 {
