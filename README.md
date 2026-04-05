@@ -43,7 +43,7 @@ VPC/SG 확인 → S3 버킷 → EC2 확인 → EFS + Mount Target → IAM Role
 - [ ] S3 버킷 존재 / `/data/` `/results/` 경로 파악
 - [ ] EC2 준비 + EFS와 동일 VPC
 - [ ] EFS + **Mount Target** 생성 완료 (생성만으로 마운트 안 됨)
-- [ ] EFS SG inbound `TCP 2049` 열림
+- [ ] EFS SG inbound `TCP 2049(NFS)` 열림
 - [ ] Assume Role 대상 IAM Role 존재
 - [ ] **Athena → Settings → Query result location** 설정 완료
 - [ ] RDS MySQL이 Lambda와 동일 VPC
