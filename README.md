@@ -1,6 +1,6 @@
-# 🏆 2026 AWS 실전 인프라 구축
+# 🏆 2026 AWS 실전 인프라 구축: 무결점 마스터 시트
 
-> **현장에서 발생하는 모든 실전 변수에 대응하는 최종 가이드**  
+> ** 현장에서 발생하는 모든 실전 변수에 대응하는 최종 가이드**  
 > S3 경로 차이, Assume Role 세션 설정, fstab 상세 옵션까지 포함
 
 ---
@@ -19,6 +19,9 @@
 
 > 터미널 접속 직후 문제지에 적힌 리소스 이름을 아래 변수에 할당하세요.  
 > 이후 모든 작업은 이 변수를 참조합니다. **오타 방지 1순위.**
+
+> **🚨 주의**: 여기서 설정한 변수는 **터미널 명령어 전용**입니다.  
+> AWS 콘솔(웹 UI) 입력 시에는 **실제 값을 직접 타이핑**해야 합니다.
 
 ```bash
 # === [대회 지정 리소스 이름 입력] ===
@@ -54,6 +57,10 @@ aws sts get-caller-identity
 
 객체의 태그와 사용자 이름을 비교하여 권한을 제어합니다.
 
+> **⚠️ 콘솔 입력 시 주의**  
+> - `Resource`의 버킷명 부분(`[실제_버킷_이름]`)은 **실제 버킷명으로 직접 교체**하세요.  
+> - `${aws:username}`은 **IAM 전용 예약어**이므로 절대 수정하지 마세요.
+
 ```json
 {
     "Version": "2012-10-17",
@@ -61,12 +68,12 @@ aws sts get-caller-identity
         {
             "Effect": "Allow",
             "Action": "s3:*",
-            "Resource": "arn:aws:s3:::${MY_BUCKET}"
+            "Resource": "arn:aws:s3:::[실제_버킷_이름]"
         },
         {
             "Effect": "Allow",
             "Action": "s3:*",
-            "Resource": "arn:aws:s3:::${MY_BUCKET}/*",
+            "Resource": "arn:aws:s3:::[실제_버킷_이름]/*",
             "Condition": {
                 "StringEquals": {
                     "s3:ExistingObjectTag/Owner": "${aws:username}"
@@ -85,10 +92,10 @@ aws sts get-caller-identity
 
 ### 💡 [선택 가이드] S3 경로를 먼저 확인하세요
 
-| Case | S3 경로 예시 | 사용 방법 |
-|------|-------------|-----------|
-| **A (Hive)** | `.../data/year=2025/month=04/day=05/` | `MSCK REPAIR` 가능 |
-| **B (Date)** | `.../data/2025/04/05/` | **반드시 Partition Projection 사용** |
+| Case | S3 경로 예시 | `storage.location.template` | 비고 |
+|------|-------------|----------------------------|------|
+| **A (Hive)** | `.../data/year=2025/month=04/day=05/` | `.../data/year=${year}/month=${month}/day=${day}/` | `MSCK REPAIR` 가능 |
+| **B (Date)** | `.../data/2025/04/05/` | `.../data/${year}/${month}/${day}/` | **반드시 Partition Projection 사용** |
 
 ### 2-1. 최적화된 Athena DDL (Partition Projection)
 
@@ -168,22 +175,13 @@ sudo chown ec2-user:ec2-user /efs      # EFS 마운트 경로 권한 부여
 
 ## 🚨 트러블슈팅 & 감점 방지
 
-### 자주 발생하는 문제 TOP 3
-
-**1. EFS 마운트 실패**
-
-90% 확률로 보안 그룹(SG)의 **2049번 포트(NFS)** 가 미개방된 경우입니다.  
-→ EC2 인바운드 규칙에서 `TCP 2049` 허용 여부를 먼저 확인하세요.
-
-**2. S3 파일이 안 보임**
-
-`mount-s3` 실행 시 `allow-other` 옵션 누락 시 `root`만 파일을 볼 수 있습니다.  
-→ `fstab`에 `allow-other` 옵션이 포함되어 있는지 반드시 확인하세요.
-
-**3. Athena 조회 결과 0 records**
-
-- `LOCATION` 경로 끝에 `/` 누락 여부 확인
-- `storage.location.template`이 실제 S3 폴더 구조(`year=` 유무)와 일치하는지 확인
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| `mount -a` 실행 시 멈춤 | SG에서 NFS 포트 미개방 | 인바운드 규칙에서 `TCP 2049` 허용 |
+| S3 파일이 안 보임 | `allow-other` 옵션 누락 | `fstab`에 `allow-other` 추가 후 재마운트 |
+| S3 마운트 후 쓰기 불가 | 소유권이 `root`로 설정됨 | `sudo chown ec2-user:ec2-user /data` 실행 |
+| Athena `0 records scanned` | 경로 불일치 | `LOCATION` 끝 `/` 확인, `storage.location.template`과 실제 S3 경로 구조 비교 |
+| EFS 마운트 실패 | SG에서 NFS 포트 미개방 | EC2 인바운드 규칙에서 `TCP 2049` 허용 여부 확인 |
 
 ### 원리 이해가 경쟁력
 
@@ -191,4 +189,4 @@ sudo chown ec2-user:ec2-user /efs      # EFS 마운트 경로 권한 부여
 
 - `tls` + `iam` → 보안 요구사항(전송 암호화 + 인증) 준수
 - `_netdev` + `nofail` → 네트워크 스토리지의 연결 안정성 확보
-- Partition Projection → Hive 메타스토어 없이 동적 파티션 스캔 가능
+- Partition Projection → S3에 데이터가 추가될 때마다 `MSCK REPAIR`를 수동 실행할 필요 없이, 설정된 범위 내의 파티션을 Athena가 자동으로 인식
