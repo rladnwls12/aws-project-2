@@ -197,14 +197,16 @@ aws sts get-caller-identity
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "AllowBucketActions",
             "Effect": "Allow",
             "Action": "s3:*",
-            "Resource": "arn:aws:s3:::[실제_버킷_이름]"
+            "Resource": "arn:aws:s3:::[실제_버킷_이름]-ap-northeast-2-an"
         },
         {
+            "Sid": "AllowObjectActionsWithTag",
             "Effect": "Allow",
             "Action": "s3:*",
-            "Resource": "arn:aws:s3:::[실제_버킷_이름]/*",
+            "Resource": "arn:aws:s3:::[실제_버킷_이름]-ap-northeast-2-an/*",
             "Condition": {
                 "StringEquals": {
                     "s3:ExistingObjectTag/Owner": "${aws:username}"
@@ -213,6 +215,8 @@ aws sts get-caller-identity
         }
     ]
 }
+
+
 ```
 
 ---
