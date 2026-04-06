@@ -122,7 +122,7 @@ Case A는 `MSCK REPAIR TLE <테이블명>;` 가능. Case B는 반드시 아래 P
 > ⚠️ `PARTITIONED BY` 타입은 projection 타입과 반드시 일치 → 전부 `INT`
 
 ```sql
-CREATE EXTERNAL TABLE <MY_TLE> (
+CREATE EXTERNAL TABLE payments (
     id         INT,
     user_id    INT,
     name       STRING,
@@ -130,24 +130,24 @@ CREATE EXTERNAL TABLE <MY_TLE> (
     status     STRING,
     country    STRING,
     event_time TIMESTAMP,
-    date DATE )
+    date       DATE 
+)
 PARTITIONED BY (year INT, month INT, day INT)
 ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-LOCATION 's3://<MY_BUCKET>/data/'
+LOCATION 's3://skills-web-bucket/data/'
 TBLPROPERTIES (
-    'projection.enled'        = 'true',
+    'projection.enabled'        = 'true', 
     'projection.year.type'      = 'integer',
     'projection.year.range'     = '2025,2026',
     'projection.month.type'     = 'integer',
-    'projection.month.range'    = '1,12',
+    'projection.month.range'    = '01,12',     
     'projection.month.digits'   = '2',
     'projection.day.type'       = 'integer',
-    'projection.day.range'      = '1,31',
+    'projection.day.range'      = '01,31',   
     'projection.day.digits'     = '2',
-    -- Case A: 'storage.location.template' = 's3://<MY_BUCKET>/data/year=${year}/month=${month}/day=${day}/'
-    -- Case B: 'storage.location.template' = 's3://<MY_BUCKET>/data/${year}/${month}/${day}/'
-    'storage.location.template' = 's3://<MY_BUCKET>/data/${year}/${month}/${day}/'
+    'storage.location.template' = 's3://skills-web-bucket/data/year=${year}/month=${month}/day=${day}/' 
 );
+
 ```
 
 ---
