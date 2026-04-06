@@ -236,6 +236,27 @@ aws sts get-caller-identity
 }
 
 
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowS3Mount",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::skills-web-bucket",
+                "arn:aws:s3:::skills-web-bucket/*"
+            ]
+        }
+    ]
+}
+
+
 ```
 
 ---
