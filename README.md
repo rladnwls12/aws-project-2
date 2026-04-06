@@ -121,16 +121,15 @@ Case A는 `MSCK REPAIR TLE <테이블명>;` 가능. Case B는 반드시 아래 P
 > ⚠️ `PARTITIONED BY` 타입은 projection 타입과 반드시 일치 → 전부 `INT`
 
 ```sql
-CREATE EXTERNAL TLE <MY_TLE> (
+CREATE EXTERNAL TABLE <MY_TLE> (
     id         INT,
     user_id    INT,
     name       STRING,
     amount     DOUBLE,
     status     STRING,
     country    STRING,
-    event_time TIMESTAMP
-    -- date DATE  ← 파일에 실제 컬럼 있을 때만 추가
-)
+    event_time TIMESTAMP,
+    date DATE )
 PARTITIONED BY (year INT, month INT, day INT)
 ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
 LOCATION 's3://<MY_BUCKET>/data/'
