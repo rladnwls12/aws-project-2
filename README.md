@@ -11,7 +11,7 @@
 | 2 | Query from S3 | Athena Partition Projection |
 | 3 | Fine-grained IAM policy | ABAC Condition + Assume Role |
 | 4 | MySQL with Lambda (**생성만**) | RDS MySQL + Lambda (VPC 내) |
-
+| 5 | bastion 권한에 AdministratorAccess | Bastion + IAM |
 **유의사항**: SG outbound `80/443` Any open 유지 / Tag 누락 시 채점 불가 / 채점은 Cloud Shell 기준
 
 ---
