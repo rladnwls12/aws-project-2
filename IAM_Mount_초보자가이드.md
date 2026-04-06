@@ -5,6 +5,8 @@
 
 ---
 
+https://docs.aws.amazon.com/ko_kr/AmazonS3/latest/userguide/mountpoint-installation.html
+
 ## 목차
 
 1. [핵심 개념 3줄 요약](#1-핵심-개념-3줄-요약)
