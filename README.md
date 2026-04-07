@@ -5,8 +5,9 @@
 ## https://velog.io/@zenru/S3-Query
 ## https://velog.io/@zenru/AWS-Assume-Role
 ## https://www.yalco.kr/@sql/1-5/
+## https://velog.io/@jinseo1234/fine-grained-iam-policy-%EA%B9%80%EC%A7%80%ED%9B%882-1775441378
 
-
+# https://velog.io/@jinseo1234/query-from-s3-%EA%B9%80%EC%A7%80%ED%9B%882-1775441380
 
 ## 📋 요구사항
 
