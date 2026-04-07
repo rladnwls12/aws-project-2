@@ -2,6 +2,10 @@
 
 ---
 
+# https://velog.io/@zenru/S3-Query
+# https://velog.io/@zenru/AWS-Assume-Role
+
+
 
 ## 📋 요구사항
 
