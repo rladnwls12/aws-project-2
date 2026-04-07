@@ -64,7 +64,7 @@ sudo mkdir -p /efs /data
 
 ```bash
 # nano 추천. vi라면: i → 입력 → Esc → :wq → Enter
-sudo nano /etc/fstab
+sudo vim /etc/fstab
 ```
 
 파일 하단에 추가 (꺾쇠 포함 실제 값으로 교체):
