@@ -3,7 +3,7 @@
 ---
 
 # [!!유용한 블로그!!](https://velog.io/@jinseo1234/series)
-
+# [영상자료](https://www.youtube.com/@%EC%95%88%EC%84%B1%EC%9D%80-l4f)
 ---
 ### https://g.co/gemini/share/89795d177291
 ## https://velog.io/@zenru/S3-Query
