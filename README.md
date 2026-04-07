@@ -9,6 +9,8 @@
 
 # https://velog.io/@jinseo1234/query-from-s3-%EA%B9%80%EC%A7%80%ED%9B%882-1775441380
 
+# [쿼리문 참고](https://velog.io/@jinseo1234/athena-%EC%BF%BC%EB%A6%AC%EB%AC%B8-1775441356)
+
 ## 📋 요구사항
 
 | # | 요구사항 | 핵심 |
