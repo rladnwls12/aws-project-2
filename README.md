@@ -139,7 +139,7 @@ CREATE EXTERNAL TABLE payments (
 )
 PARTITIONED BY (year INT, month INT, day INT)
 ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-LOCATION 's3://skills-web-bucket/data/'
+LOCATION 's3://[버켓 이름]/data/'
 TBLPROPERTIES (
     'projection.enabled'        = 'true', 
     'projection.year.type'      = 'integer',
@@ -150,7 +150,7 @@ TBLPROPERTIES (
     'projection.day.type'       = 'integer',
     'projection.day.range'      = '01,31',   
     'projection.day.digits'     = '2',
-    'storage.location.template' = 's3://skills-web-bucket/data/year=${year}/month=${month}/day=${day}/' 
+    'storage.location.template' = 's3://[버켓 이름]/data/year=${year}/month=${month}/day=${day}/' 
 );
 
 ```
