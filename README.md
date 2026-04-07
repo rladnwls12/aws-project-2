@@ -5,7 +5,7 @@
 # [!!유용한 블로그!!](https://velog.io/@jinseo1234/series)
 
 ---
-
+### https://g.co/gemini/share/89795d177291
 ## https://velog.io/@zenru/S3-Query
 ## https://velog.io/@zenru/AWS-Assume-Role
 ## https://www.yalco.kr/@sql/1-5/
@@ -28,6 +28,9 @@
 **유의사항**: SG outbound `80/443` Any open 유지 / Tag 누락 시 채점 불가 / 채점은 Cloud Shell 기준
 
 ---
+
+
+
 
 ## 0. 시작 전
 
