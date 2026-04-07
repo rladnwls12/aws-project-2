@@ -161,7 +161,7 @@ TBLPROPERTIES (
 
 
 
-```bash
+
 # 1. Role 수행
 
 ## 🛠️ IAM Role 생성 절차 
@@ -183,7 +183,8 @@ TBLPROPERTIES (
 5. **이름 설정 및 생성 (Name, review, and create)**
    * **Role name**: `MyS3AccessRole`을 입력합니다.
    * 하단의 **Create role** 버튼을 눌러 생성을 완료합니다.
-
+   * 
+```bash
 
 
 aws sts assume-role --role-arn $MY_ROLE_ARN --role-session-name mysession
@@ -195,6 +196,8 @@ aws sts assume-role --role-arn $MY_ROLE_ARN --role-session-name mysession
 export AWS_ACCESS_KEY_ID="<결과_AccessKeyId>"
 export AWS_SECRET_ACCESS_KEY="<결과_SecretAccessKey>"
 export AWS_SESSION_TOKEN="<결과_SessionToken>"
+
+
 
 # Windows PowerShell
 # $env:AWS_ACCESS_KEY_ID="<결과_AccessKeyId>"
