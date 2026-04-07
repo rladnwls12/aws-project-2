@@ -2,9 +2,9 @@
 
 ---
 
-# https://velog.io/@zenru/S3-Query
-# https://velog.io/@zenru/AWS-Assume-Role
-
+## https://velog.io/@zenru/S3-Query
+## https://velog.io/@zenru/AWS-Assume-Role
+## https://www.yalco.kr/@sql/1-5/
 
 
 ## 📋 요구사항
